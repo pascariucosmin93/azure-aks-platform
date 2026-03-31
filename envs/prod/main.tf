@@ -82,18 +82,20 @@ module "key_vault" {
 }
 
 module "aks" {
-  source                     = "../../modules/aks"
-  name                       = "${var.prefix}-aks-prod"
-  location                   = var.location
-  resource_group_name        = module.rg_spoke.name
-  dns_prefix                 = "${var.prefix}-aks-prod"
-  sku_tier                   = "Standard"
-  node_subnet_id             = module.spoke_network.subnet_ids["aks"]
-  user_assigned_identity_id  = module.identity.id
-  log_analytics_workspace_id = module.monitoring.id
-  pod_cidr                   = "10.250.0.0/16"
-  service_cidr               = "10.100.0.0/16"
-  dns_service_ip             = "10.100.0.10"
+  source                          = "../../modules/aks"
+  name                            = "${var.prefix}-aks-prod"
+  location                        = var.location
+  resource_group_name             = module.rg_spoke.name
+  dns_prefix                      = "${var.prefix}-aks-prod"
+  sku_tier                        = "Standard"
+  node_subnet_id                  = module.spoke_network.subnet_ids["aks"]
+  user_assigned_identity_id       = module.identity.id
+  log_analytics_workspace_id      = module.monitoring.id
+  pod_cidr                        = "10.250.0.0/16"
+  service_cidr                    = "10.100.0.0/16"
+  dns_service_ip                  = "10.100.0.10"
+  private_cluster_enabled         = true
+  api_server_authorized_ip_ranges = []
   default_node_pool = {
     name            = "system"
     vm_size         = "Standard_D4s_v5"
@@ -103,3 +105,16 @@ module "aks" {
   tags = var.tags
 }
 
+module "aks_acr_pull" {
+  source               = "../../modules/role-assignment"
+  scope                = module.acr.id
+  role_definition_name = "AcrPull"
+  principal_id         = module.aks.kubelet_identity_object_id
+}
+
+module "aks_key_vault_secrets_user" {
+  source               = "../../modules/role-assignment"
+  scope                = module.key_vault.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = module.identity.principal_id
+}

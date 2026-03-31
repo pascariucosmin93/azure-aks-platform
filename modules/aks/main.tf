@@ -1,11 +1,16 @@
 resource "azurerm_kubernetes_cluster" "this" {
-  name                = var.name
-  location            = var.location
-  resource_group_name = var.resource_group_name
-  dns_prefix          = var.dns_prefix
-  kubernetes_version  = var.kubernetes_version
-  sku_tier            = var.sku_tier
-  tags                = var.tags
+  name                            = var.name
+  location                        = var.location
+  resource_group_name             = var.resource_group_name
+  dns_prefix                      = var.dns_prefix
+  kubernetes_version              = var.kubernetes_version
+  sku_tier                        = var.sku_tier
+  private_cluster_enabled         = var.private_cluster_enabled
+  azure_policy_enabled            = var.azure_policy_enabled
+  oidc_issuer_enabled             = var.oidc_issuer_enabled
+  workload_identity_enabled       = var.workload_identity_enabled
+  automatic_upgrade_channel       = var.automatic_upgrade_channel
+  tags                            = var.tags
 
   default_node_pool {
     name            = var.default_node_pool.name
@@ -19,6 +24,13 @@ resource "azurerm_kubernetes_cluster" "this" {
   identity {
     type         = "UserAssigned"
     identity_ids = [var.user_assigned_identity_id]
+  }
+
+  dynamic "api_server_access_profile" {
+    for_each = length(var.api_server_authorized_ip_ranges) > 0 ? [1] : []
+    content {
+      authorized_ip_ranges = var.api_server_authorized_ip_ranges
+    }
   }
 
   network_profile {
@@ -39,4 +51,3 @@ resource "azurerm_kubernetes_cluster" "this" {
   role_based_access_control_enabled = true
   local_account_disabled            = false
 }
-

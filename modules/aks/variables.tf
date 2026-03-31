@@ -24,6 +24,36 @@ variable "sku_tier" {
   default = "Free"
 }
 
+variable "private_cluster_enabled" {
+  type    = bool
+  default = false
+}
+
+variable "azure_policy_enabled" {
+  type    = bool
+  default = true
+}
+
+variable "oidc_issuer_enabled" {
+  type    = bool
+  default = true
+}
+
+variable "workload_identity_enabled" {
+  type    = bool
+  default = true
+}
+
+variable "api_server_authorized_ip_ranges" {
+  type    = list(string)
+  default = []
+}
+
+variable "automatic_upgrade_channel" {
+  type    = string
+  default = "patch"
+}
+
 variable "node_subnet_id" {
   type = string
 }
@@ -61,4 +91,3 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
-

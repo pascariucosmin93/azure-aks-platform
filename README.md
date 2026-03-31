@@ -10,6 +10,7 @@ This repository is a public, sanitized reference implementation of how I would s
 - Azure Key Vault
 - Azure Log Analytics
 - user-assigned managed identities
+- Azure RBAC role assignments
 - reusable Terraform modules
 - multi-environment layout
 
@@ -21,6 +22,7 @@ No live Azure account details, subscription IDs, tenant IDs, DNS zones or secret
 - AKS platform provisioning with reusable building blocks
 - network foundation for a hub-spoke model
 - identity and secret-management primitives
+- production-style role assignment patterns for AKS
 - operational structure for `dev` and `prod`
 - CI/CD validation for Terraform code quality
 
@@ -70,9 +72,11 @@ flowchart LR
 - `modules/key-vault/`: Key Vault
 - `modules/monitoring/`: Log Analytics workspace
 - `modules/identity/`: user-assigned managed identity
+- `modules/role-assignment/`: reusable Azure RBAC role assignment
 - `modules/aks/`: AKS cluster
 - `envs/dev/`: development environment composition
 - `envs/prod/`: production environment composition
+- `examples/minimal/`: smallest useful AKS composition
 - `docs/architecture.md`: design and implementation notes
 - `.github/workflows/terraform.yml`: Terraform quality workflow
 
@@ -123,6 +127,15 @@ Creates:
 - Azure CNI overlay networking
 - OMS / Log Analytics integration
 - managed identity integration
+- optional private cluster mode
+- OIDC issuer and workload identity flags
+
+### `role-assignment`
+
+Creates reusable Azure RBAC role assignments for access patterns such as:
+
+- AKS kubelet identity -> `AcrPull`
+- platform identity -> `Key Vault Secrets User`
 
 ## Environments
 
@@ -130,6 +143,7 @@ Two example environments are included:
 
 - `envs/dev`
 - `envs/prod`
+- `examples/minimal`
 
 Each environment is intentionally generic and designed for `terraform init`, `terraform fmt`, `terraform validate` and future extension into real subscriptions.
 
@@ -140,6 +154,8 @@ GitHub Actions validates the Terraform code with:
 - `terraform fmt -check`
 - `terraform init -backend=false`
 - `terraform validate`
+- `tflint`
+- `checkov`
 
 The workflow is safe for a public repository because it does not need cloud credentials.
 
@@ -160,7 +176,7 @@ terraform apply
 
 - This is a reference implementation, not a full enterprise landing zone.
 - Add remote state, policy enforcement, private DNS and ingress layers as needed.
-- Extend the AKS module with node pool separation, private cluster support and workload identity if you need a more advanced platform.
+- Extend the AKS module with additional node pools, private DNS integration and ingress if you need a more advanced platform.
 
 ## Portfolio Positioning
 
@@ -170,4 +186,3 @@ This repository is meant to show cloud platform design quality:
 - platform engineering thinking
 - Kubernetes-focused cloud architecture
 - reusable and maintainable Terraform layout
-
