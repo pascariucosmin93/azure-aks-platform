@@ -159,6 +159,15 @@ GitHub Actions validates the Terraform code with:
 
 The workflow is safe for a public repository because it does not need cloud credentials.
 
+### Why Both TFLint and Checkov?
+
+`TFLint` and `Checkov` solve different problems, so using both gives better coverage in CI.
+
+- `TFLint` focuses on Terraform quality: provider usage, missing constraints, invalid arguments, naming issues, and common authoring mistakes.
+- `Checkov` focuses on security and compliance: public exposure, weak defaults, missing network controls, and cloud-specific hardening gaps.
+
+In practice, `TFLint` helps keep the code correct and maintainable, while `Checkov` helps keep the design safer and closer to production expectations.
+
 ## How To Use
 
 1. Copy one of the environment folders.
