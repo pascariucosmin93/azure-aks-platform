@@ -2,4 +2,40 @@ subscription_id = "00000000-0000-0000-0000-000000000000"
 tenant_id       = "00000000-0000-0000-0000-000000000000"
 location        = "westeurope"
 prefix          = "demo"
+dns_prefix      = "demo-aks-dev"
 
+hub_address_space   = ["10.10.0.0/16"]
+spoke_address_space = ["10.20.0.0/16"]
+
+hub_subnets = {
+  AzureBastionSubnet = {
+    address_prefixes = ["10.10.1.0/24"]
+  }
+  shared-services = {
+    address_prefixes = ["10.10.2.0/24"]
+  }
+}
+
+spoke_subnets = {
+  aks = {
+    address_prefixes = ["10.20.1.0/24"]
+  }
+}
+
+acr_sku                     = "Premium"
+acr_georeplication_locations = ["northeurope"]
+aks_sku_tier                = "Standard"
+pod_cidr                    = "10.244.0.0/16"
+service_cidr                = "10.96.0.0/16"
+dns_service_ip              = "10.96.0.10"
+
+default_node_pool = {
+  name                         = "system"
+  vm_size                      = "Standard_D4s_v5"
+  node_count                   = 2
+  os_disk_size_gb              = 128
+  max_pods                     = 50
+  only_critical_addons_enabled = true
+  os_disk_type                 = "Ephemeral"
+  host_encryption_enabled      = true
+}

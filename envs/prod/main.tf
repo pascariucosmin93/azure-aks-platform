@@ -17,16 +17,9 @@ module "hub_network" {
   name                = "${var.prefix}-hub-vnet"
   location            = var.location
   resource_group_name = module.rg_hub.name
-  address_space       = ["10.110.0.0/16"]
-  subnets = {
-    AzureBastionSubnet = {
-      address_prefixes = ["10.110.1.0/24"]
-    }
-    shared-services = {
-      address_prefixes = ["10.110.2.0/24"]
-    }
-  }
-  tags = var.tags
+  address_space       = var.hub_address_space
+  subnets             = var.hub_subnets
+  tags                = var.tags
 }
 
 module "spoke_network" {
@@ -34,14 +27,10 @@ module "spoke_network" {
   name                      = "${var.prefix}-aks-vnet"
   location                  = var.location
   resource_group_name       = module.rg_spoke.name
-  address_space             = ["10.120.0.0/16"]
+  address_space             = var.spoke_address_space
   remote_virtual_network_id = module.hub_network.vnet_id
-  subnets = {
-    aks = {
-      address_prefixes = ["10.120.1.0/24"]
-    }
-  }
-  tags = var.tags
+  subnets                   = var.spoke_subnets
+  tags                      = var.tags
 }
 
 module "monitoring" {
@@ -63,14 +52,14 @@ module "identity" {
 
 module "acr" {
   source                        = "../../modules/acr"
-  name                          = replace("${var.prefix}acrprod", "-", "")
+  name                          = replace("${var.prefix}${var.acr_name_suffix}", "-", "")
   location                      = var.location
   resource_group_name           = module.rg_spoke.name
-  sku                           = "Premium"
+  sku                           = var.acr_sku
   admin_enabled                 = false
   public_network_access_enabled = false
   zone_redundancy_enabled       = true
-  georeplication_locations      = ["northeurope"]
+  georeplication_locations      = var.acr_georeplication_locations
   tags                          = var.tags
 }
 
@@ -92,30 +81,21 @@ module "key_vault" {
 
 module "aks" {
   source                          = "../../modules/aks"
-  name                            = "${var.prefix}-aks-prod"
+  name                            = "${var.prefix}-${var.aks_name_suffix}"
   location                        = var.location
   resource_group_name             = module.rg_spoke.name
-  dns_prefix                      = "${var.prefix}-aks-prod"
-  sku_tier                        = "Standard"
+  dns_prefix                      = var.dns_prefix
+  sku_tier                        = var.aks_sku_tier
   node_subnet_id                  = module.spoke_network.subnet_ids["aks"]
   user_assigned_identity_id       = module.identity.id
   log_analytics_workspace_id      = module.monitoring.id
-  pod_cidr                        = "10.250.0.0/16"
-  service_cidr                    = "10.100.0.0/16"
-  dns_service_ip                  = "10.100.0.10"
+  pod_cidr                        = var.pod_cidr
+  service_cidr                    = var.service_cidr
+  dns_service_ip                  = var.dns_service_ip
   private_cluster_enabled         = true
   api_server_authorized_ip_ranges = []
-  default_node_pool = {
-    name                         = "system"
-    vm_size                      = "Standard_D4s_v5"
-    node_count                   = 3
-    os_disk_size_gb              = 128
-    max_pods                     = 50
-    only_critical_addons_enabled = true
-    os_disk_type                 = "Ephemeral"
-    host_encryption_enabled      = true
-  }
-  tags = var.tags
+  default_node_pool               = var.default_node_pool
+  tags                            = var.tags
 }
 
 module "aks_acr_pull" {

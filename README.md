@@ -150,6 +150,14 @@ Each environment is intentionally generic and designed for `terraform init`, `te
 
 State is intended to be stored remotely in Azure Blob Storage for real deployments. The repository includes partial backend configuration and sanitized `backend.hcl.example` files for both `dev` and `prod`.
 
+Each environment folder is designed to own its own:
+
+- `terraform.tfvars`
+- `backend.hcl`
+- Blob state key
+
+This keeps `dev` and `prod` isolated instead of mixing sizing, networking, or backend details in one shared place.
+
 ## CI/CD
 
 GitHub Actions validates the Terraform code with:
