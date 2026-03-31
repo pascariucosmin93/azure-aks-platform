@@ -1,4 +1,5 @@
 skip-check:
+  - CKV_AZURE_164 # Trusted image enforcement depends on image signing and verification controls outside this infrastructure-only reference repository
   - CKV_AZURE_166 # ACR image scanning/mark-as-verified is not fully modeled in this reference repo
   - CKV_AZURE_117 # Disk Encryption Set requires additional CMK resources outside the scope of this simplified platform reference
   - CKV2_AZURE_32 # Key Vault private endpoint is intentionally omitted from this public reference to keep the network model compact
