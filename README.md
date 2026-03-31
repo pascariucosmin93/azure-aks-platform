@@ -77,6 +77,7 @@ flowchart LR
 - `envs/dev/`: development environment composition
 - `envs/prod/`: production environment composition
 - `examples/minimal/`: smallest useful AKS composition
+- `envs/*/backend.hcl.example`: sanitized Azure Blob backend examples
 - `docs/architecture.md`: design and implementation notes
 - `.github/workflows/terraform.yml`: Terraform quality workflow
 
@@ -147,6 +148,8 @@ Two example environments are included:
 
 Each environment is intentionally generic and designed for `terraform init`, `terraform fmt`, `terraform validate` and future extension into real subscriptions.
 
+State is intended to be stored remotely in Azure Blob Storage for real deployments. The repository includes partial backend configuration and sanitized `backend.hcl.example` files for both `dev` and `prod`.
+
 ## CI/CD
 
 GitHub Actions validates the Terraform code with:
@@ -172,14 +175,24 @@ In practice, `TFLint` helps keep the code correct and maintainable, while `Check
 
 1. Copy one of the environment folders.
 2. Fill in `terraform.tfvars` with your own Azure values.
-3. Run:
+3. Copy `backend.hcl.example` to `backend.hcl` and replace the placeholder values with your own Azure Blob backend details.
+4. Run:
 
 ```bash
 cd envs/dev
-terraform init
+terraform init -backend-config=backend.hcl
 terraform plan
 terraform apply
 ```
+
+## Remote State Bootstrap
+
+For real usage, create a dedicated Azure Storage Account and Blob container for Terraform state before the first `apply`.
+
+- Use a separate resource group for state storage.
+- Enable versioning, soft delete, and restricted network access on the storage account.
+- Keep one state key per environment, for example `azure-aks-platform/dev.tfstate` and `azure-aks-platform/prod.tfstate`.
+- Do not commit `backend.hcl` or any live backend values to Git.
 
 ## Notes
 

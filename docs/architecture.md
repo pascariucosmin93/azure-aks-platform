@@ -21,6 +21,7 @@ This repository currently includes:
 - Key Vault
 - Log Analytics
 - managed identity
+- partial remote-state configuration for Azure Blob Storage
 
 ## Expected Extensions
 
@@ -31,3 +32,13 @@ This repository currently includes:
 - policy assignments
 - diagnostics settings and dashboards
 
+## Terraform State
+
+The environment compositions are prepared for an `azurerm` backend, but the live backend values are intentionally not committed.
+
+Recommended pattern:
+
+- store Terraform state in a dedicated Azure Storage Account
+- keep one Blob container for Terraform state
+- use a separate state key per environment
+- manage backend access with Azure RBAC and least privilege
