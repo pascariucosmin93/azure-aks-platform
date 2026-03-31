@@ -210,16 +210,24 @@ If this repository is connected to a real Azure subscription, the expected GitHu
 
 - `dev` and `prod` GitHub Environments
 - separate `backend.hcl` values per environment
-- Azure authentication through GitHub Actions secrets or OIDC
+- Azure authentication through GitHub OIDC
 
-Typical secrets for a service principal based setup:
+Required environment secrets:
 
-- `ARM_CLIENT_ID`
-- `ARM_CLIENT_SECRET`
-- `ARM_TENANT_ID`
-- `ARM_SUBSCRIPTION_ID`
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+- `TFSTATE_RESOURCE_GROUP`
+- `TFSTATE_STORAGE_ACCOUNT`
+- `TFSTATE_CONTAINER`
+- `TFSTATE_KEY`
 
-For a stronger production setup, prefer GitHub OIDC with `azure/login` and avoid long-lived client secrets where possible.
+Recommended setup:
+
+- use `azure/login` with OIDC instead of long-lived client secrets
+- keep `dev` and `prod` protected with separate GitHub Environments
+- run `Terraform Plan` first and review the uploaded plan artifact
+- allow `Terraform Apply` only behind environment approval rules
 
 ## Notes
 
