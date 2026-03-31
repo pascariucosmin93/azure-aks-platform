@@ -1,16 +1,16 @@
 resource "azurerm_kubernetes_cluster" "this" {
-  name                            = var.name
-  location                        = var.location
-  resource_group_name             = var.resource_group_name
-  dns_prefix                      = var.dns_prefix
-  kubernetes_version              = var.kubernetes_version
-  sku_tier                        = var.sku_tier
-  private_cluster_enabled         = var.private_cluster_enabled
-  azure_policy_enabled            = var.azure_policy_enabled
-  oidc_issuer_enabled             = var.oidc_issuer_enabled
-  workload_identity_enabled       = var.workload_identity_enabled
-  automatic_upgrade_channel       = var.automatic_upgrade_channel
-  tags                            = var.tags
+  name                      = var.name
+  location                  = var.location
+  resource_group_name       = var.resource_group_name
+  dns_prefix                = var.dns_prefix
+  kubernetes_version        = var.kubernetes_version
+  sku_tier                  = var.sku_tier
+  private_cluster_enabled   = var.private_cluster_enabled
+  azure_policy_enabled      = var.azure_policy_enabled
+  oidc_issuer_enabled       = var.oidc_issuer_enabled
+  workload_identity_enabled = var.workload_identity_enabled
+  automatic_upgrade_channel = var.automatic_upgrade_channel
+  tags                      = var.tags
 
   default_node_pool {
     name            = var.default_node_pool.name
