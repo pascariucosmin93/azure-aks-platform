@@ -1,0 +1,45 @@
+name: Terraform Plan
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    env:
+      ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.2
+
+      - name: Prepare backend config
+        working-directory: envs/${{ inputs.environment }}
+        run: |
+          cp backend.hcl.example backend.hcl
+          echo "Replace placeholder backend values before using this workflow in a real Azure account."
+          cat backend.hcl
+
+      - name: Terraform init
+        working-directory: envs/${{ inputs.environment }}
+        run: terraform init -backend-config=backend.hcl
+
+      - name: Terraform plan
+        working-directory: envs/${{ inputs.environment }}
+        run: terraform plan -var-file=terraform.tfvars

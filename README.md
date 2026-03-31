@@ -170,6 +170,8 @@ GitHub Actions validates the Terraform code with:
 
 The workflow is safe for a public repository because it does not need cloud credentials.
 
+For a real Azure subscription, the intended next step is to add authenticated `terraform plan` jobs using GitHub Actions environments and Azure credentials.
+
 ### Why Both TFLint and Checkov?
 
 `TFLint` and `Checkov` solve different problems, so using both gives better coverage in CI.
@@ -201,6 +203,23 @@ For real usage, create a dedicated Azure Storage Account and Blob container for 
 - Enable versioning, soft delete, and restricted network access on the storage account.
 - Keep one state key per environment, for example `azure-aks-platform/dev.tfstate` and `azure-aks-platform/prod.tfstate`.
 - Do not commit `backend.hcl` or any live backend values to Git.
+
+## Real Account CI/CD
+
+If this repository is connected to a real Azure subscription, the expected GitHub setup is:
+
+- `dev` and `prod` GitHub Environments
+- separate `backend.hcl` values per environment
+- Azure authentication through GitHub Actions secrets or OIDC
+
+Typical secrets for a service principal based setup:
+
+- `ARM_CLIENT_ID`
+- `ARM_CLIENT_SECRET`
+- `ARM_TENANT_ID`
+- `ARM_SUBSCRIPTION_ID`
+
+For a stronger production setup, prefer GitHub OIDC with `azure/login` and avoid long-lived client secrets where possible.
 
 ## Notes
 
