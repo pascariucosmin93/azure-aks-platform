@@ -31,11 +31,25 @@ variable "soft_delete_retention_days" {
 
 variable "public_network_access_enabled" {
   type    = bool
-  default = true
+  default = false
+}
+
+variable "network_acls" {
+  type = object({
+    bypass                     = string
+    default_action             = string
+    ip_rules                   = list(string)
+    virtual_network_subnet_ids = list(string)
+  })
+  default = {
+    bypass                     = "AzureServices"
+    default_action             = "Deny"
+    ip_rules                   = []
+    virtual_network_subnet_ids = []
+  }
 }
 
 variable "tags" {
   type    = map(string)
   default = {}
 }
-

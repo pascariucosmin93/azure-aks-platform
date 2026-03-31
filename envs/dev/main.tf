@@ -61,13 +61,16 @@ module "identity" {
 }
 
 module "acr" {
-  source              = "../../modules/acr"
-  name                = replace("${var.prefix}acrdev", "-", "")
-  location            = var.location
-  resource_group_name = module.rg_spoke.name
-  sku                 = "Standard"
-  admin_enabled       = false
-  tags                = var.tags
+  source                        = "../../modules/acr"
+  name                          = replace("${var.prefix}acrdev", "-", "")
+  location                      = var.location
+  resource_group_name           = module.rg_spoke.name
+  sku                           = "Premium"
+  admin_enabled                 = false
+  public_network_access_enabled = false
+  zone_redundancy_enabled       = true
+  georeplication_locations      = ["northeurope"]
+  tags                          = var.tags
 }
 
 module "key_vault" {
@@ -76,8 +79,14 @@ module "key_vault" {
   location                      = var.location
   resource_group_name           = module.rg_spoke.name
   tenant_id                     = var.tenant_id
-  public_network_access_enabled = true
-  tags                          = var.tags
+  public_network_access_enabled = false
+  network_acls = {
+    bypass                     = "AzureServices"
+    default_action             = "Deny"
+    ip_rules                   = []
+    virtual_network_subnet_ids = [module.spoke_network.subnet_ids["aks"]]
+  }
+  tags = var.tags
 }
 
 module "aks" {
@@ -86,19 +95,24 @@ module "aks" {
   location                        = var.location
   resource_group_name             = module.rg_spoke.name
   dns_prefix                      = "${var.prefix}-aks-dev"
+  sku_tier                        = "Standard"
   node_subnet_id                  = module.spoke_network.subnet_ids["aks"]
   user_assigned_identity_id       = module.identity.id
   log_analytics_workspace_id      = module.monitoring.id
   pod_cidr                        = "10.244.0.0/16"
   service_cidr                    = "10.96.0.0/16"
   dns_service_ip                  = "10.96.0.10"
-  private_cluster_enabled         = false
+  private_cluster_enabled         = true
   api_server_authorized_ip_ranges = []
   default_node_pool = {
-    name            = "system"
-    vm_size         = "Standard_D4s_v5"
-    node_count      = 2
-    os_disk_size_gb = 128
+    name                         = "system"
+    vm_size                      = "Standard_D4s_v5"
+    node_count                   = 2
+    os_disk_size_gb              = 128
+    max_pods                     = 50
+    only_critical_addons_enabled = true
+    os_disk_type                 = "Ephemeral"
+    host_encryption_enabled      = true
   }
   tags = var.tags
 }

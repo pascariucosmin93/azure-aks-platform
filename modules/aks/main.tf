@@ -13,12 +13,16 @@ resource "azurerm_kubernetes_cluster" "this" {
   tags                      = var.tags
 
   default_node_pool {
-    name            = var.default_node_pool.name
-    vm_size         = var.default_node_pool.vm_size
-    node_count      = var.default_node_pool.node_count
-    vnet_subnet_id  = var.node_subnet_id
-    os_disk_size_gb = var.default_node_pool.os_disk_size_gb
-    type            = "VirtualMachineScaleSets"
+    name                         = var.default_node_pool.name
+    vm_size                      = var.default_node_pool.vm_size
+    node_count                   = var.default_node_pool.node_count
+    vnet_subnet_id               = var.node_subnet_id
+    os_disk_size_gb              = var.default_node_pool.os_disk_size_gb
+    max_pods                     = var.default_node_pool.max_pods
+    only_critical_addons_enabled = var.default_node_pool.only_critical_addons_enabled
+    os_disk_type                 = var.default_node_pool.os_disk_type
+    host_encryption_enabled      = var.default_node_pool.host_encryption_enabled
+    type                         = "VirtualMachineScaleSets"
   }
 
   identity {
@@ -48,6 +52,12 @@ resource "azurerm_kubernetes_cluster" "this" {
     log_analytics_workspace_id = var.log_analytics_workspace_id
   }
 
+  key_vault_secrets_provider {
+    secret_rotation_enabled = true
+  }
+
   role_based_access_control_enabled = true
-  local_account_disabled            = false
+  local_account_disabled            = true
+
+  disk_encryption_set_id = var.disk_encryption_set_id
 }

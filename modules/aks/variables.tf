@@ -21,7 +21,7 @@ variable "kubernetes_version" {
 
 variable "sku_tier" {
   type    = string
-  default = "Free"
+  default = "Standard"
 }
 
 variable "private_cluster_enabled" {
@@ -80,11 +80,20 @@ variable "dns_service_ip" {
 
 variable "default_node_pool" {
   type = object({
-    name            = string
-    vm_size         = string
-    node_count      = number
-    os_disk_size_gb = number
+    name                         = string
+    vm_size                      = string
+    node_count                   = number
+    os_disk_size_gb              = number
+    max_pods                     = optional(number, 50)
+    only_critical_addons_enabled = optional(bool, true)
+    os_disk_type                 = optional(string, "Ephemeral")
+    host_encryption_enabled      = optional(bool, true)
   })
+}
+
+variable "disk_encryption_set_id" {
+  type    = string
+  default = null
 }
 
 variable "tags" {

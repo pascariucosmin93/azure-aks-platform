@@ -62,13 +62,16 @@ module "identity" {
 }
 
 module "acr" {
-  source              = "../../modules/acr"
-  name                = replace("${var.prefix}acrprod", "-", "")
-  location            = var.location
-  resource_group_name = module.rg_spoke.name
-  sku                 = "Premium"
-  admin_enabled       = false
-  tags                = var.tags
+  source                        = "../../modules/acr"
+  name                          = replace("${var.prefix}acrprod", "-", "")
+  location                      = var.location
+  resource_group_name           = module.rg_spoke.name
+  sku                           = "Premium"
+  admin_enabled                 = false
+  public_network_access_enabled = false
+  zone_redundancy_enabled       = true
+  georeplication_locations      = ["northeurope"]
+  tags                          = var.tags
 }
 
 module "key_vault" {
@@ -78,7 +81,13 @@ module "key_vault" {
   resource_group_name           = module.rg_spoke.name
   tenant_id                     = var.tenant_id
   public_network_access_enabled = false
-  tags                          = var.tags
+  network_acls = {
+    bypass                     = "AzureServices"
+    default_action             = "Deny"
+    ip_rules                   = []
+    virtual_network_subnet_ids = [module.spoke_network.subnet_ids["aks"]]
+  }
+  tags = var.tags
 }
 
 module "aks" {
@@ -97,10 +106,14 @@ module "aks" {
   private_cluster_enabled         = true
   api_server_authorized_ip_ranges = []
   default_node_pool = {
-    name            = "system"
-    vm_size         = "Standard_D4s_v5"
-    node_count      = 3
-    os_disk_size_gb = 128
+    name                         = "system"
+    vm_size                      = "Standard_D4s_v5"
+    node_count                   = 3
+    os_disk_size_gb              = 128
+    max_pods                     = 50
+    only_critical_addons_enabled = true
+    os_disk_type                 = "Ephemeral"
+    host_encryption_enabled      = true
   }
   tags = var.tags
 }

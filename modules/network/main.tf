@@ -14,6 +14,20 @@ resource "azurerm_subnet" "this" {
   address_prefixes     = each.value.address_prefixes
 }
 
+resource "azurerm_network_security_group" "this" {
+  for_each            = var.subnets
+  name                = "${var.name}-${each.key}-nsg"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  tags                = var.tags
+}
+
+resource "azurerm_subnet_network_security_group_association" "this" {
+  for_each                  = var.subnets
+  subnet_id                 = azurerm_subnet.this[each.key].id
+  network_security_group_id = azurerm_network_security_group.this[each.key].id
+}
+
 resource "azurerm_virtual_network_peering" "to_remote" {
   count                        = var.remote_virtual_network_id == null ? 0 : 1
   name                         = "${var.name}-to-remote"
@@ -23,4 +37,3 @@ resource "azurerm_virtual_network_peering" "to_remote" {
   allow_virtual_network_access = true
   allow_forwarded_traffic      = true
 }
-
