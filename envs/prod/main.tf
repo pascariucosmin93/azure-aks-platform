@@ -289,23 +289,26 @@ resource "random_password" "pg_admin" {
 }
 
 resource "azurerm_key_vault_secret" "pg_admin_password" {
-  name         = "pg-admin-password"
-  value        = random_password.pg_admin.result
-  key_vault_id = module.key_vault.id
+  name            = "pg-admin-password"
+  value           = random_password.pg_admin.result
+  key_vault_id    = module.key_vault.id
+  content_type    = "password"
+  expiration_date = "2030-12-31T23:59:59Z"
 
   depends_on = [module.terraform_kv_secrets_officer]
 }
 
 module "postgresql" {
-  source              = "../../modules/postgresql"
-  prefix              = var.prefix
-  location            = var.location
-  resource_group_name = module.rg_spoke.name
-  virtual_network_id  = module.spoke_network.vnet_id
-  delegated_subnet_id = module.spoke_network.subnet_ids["postgresql"]
-  tenant_id           = var.tenant_id
-  sku_name            = var.pg_sku_name
-  storage_mb          = var.pg_storage_mb
+  source                       = "../../modules/postgresql"
+  prefix                       = var.prefix
+  location                     = var.location
+  resource_group_name          = module.rg_spoke.name
+  virtual_network_id           = module.spoke_network.vnet_id
+  delegated_subnet_id          = module.spoke_network.subnet_ids["postgresql"]
+  tenant_id                    = var.tenant_id
+  sku_name                     = var.pg_sku_name
+  storage_mb                   = var.pg_storage_mb
+  geo_redundant_backup_enabled = true
 
   administrator_login    = "psqladmin"
   administrator_password = random_password.pg_admin.result

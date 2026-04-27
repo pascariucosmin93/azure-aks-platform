@@ -28,6 +28,7 @@ resource "azurerm_firewall" "main" {
   sku_name            = "AZFW_VNet"
   sku_tier            = var.sku_tier
   firewall_policy_id  = azurerm_firewall_policy.main.id
+  threat_intel_mode   = "Deny"
   zones               = ["1", "2", "3"]
 
   ip_configuration {

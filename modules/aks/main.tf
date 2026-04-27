@@ -91,22 +91,23 @@ resource "azurerm_kubernetes_cluster" "this" {
 resource "azurerm_kubernetes_cluster_node_pool" "extra" {
   for_each = var.extra_node_pools
 
-  name                  = each.key
-  kubernetes_cluster_id = azurerm_kubernetes_cluster.this.id
-  vm_size               = each.value.vm_size
-  auto_scaling_enabled  = true
-  min_count             = each.value.min_count
-  max_count             = each.value.max_count
-  max_pods              = each.value.max_pods
-  os_disk_size_gb       = each.value.os_disk_size_gb
-  os_disk_type          = each.value.os_disk_type
-  vnet_subnet_id        = var.node_subnet_id
-  node_labels           = each.value.node_labels
-  node_taints           = each.value.node_taints
-  priority              = each.value.priority
-  eviction_policy       = each.value.priority == "Spot" ? "Delete" : null
-  spot_max_price        = each.value.priority == "Spot" ? each.value.spot_max_price : null
-  zones                 = each.value.zones
-  mode                  = each.value.mode
-  tags                  = var.tags
+  name                    = each.key
+  kubernetes_cluster_id   = azurerm_kubernetes_cluster.this.id
+  vm_size                 = each.value.vm_size
+  auto_scaling_enabled    = true
+  min_count               = each.value.min_count
+  max_count               = each.value.max_count
+  max_pods                = coalesce(each.value.max_pods, 50)
+  os_disk_size_gb         = each.value.os_disk_size_gb
+  os_disk_type            = each.value.os_disk_type
+  host_encryption_enabled = coalesce(each.value.host_encryption_enabled, true)
+  vnet_subnet_id          = var.node_subnet_id
+  node_labels             = each.value.node_labels
+  node_taints             = each.value.node_taints
+  priority                = each.value.priority
+  eviction_policy         = each.value.priority == "Spot" ? "Delete" : null
+  spot_max_price          = each.value.priority == "Spot" ? each.value.spot_max_price : null
+  zones                   = each.value.zones
+  mode                    = each.value.mode
+  tags                    = var.tags
 }

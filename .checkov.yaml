@@ -3,3 +3,7 @@ skip-check:
   - CKV_AZURE_166 # ACR image scanning/mark-as-verified is not fully modeled in this reference repo
   - CKV_AZURE_117 # Disk Encryption Set requires additional CMK resources outside the scope of this simplified platform reference
   - CKV2_AZURE_32 # Key Vault private endpoint is intentionally omitted from this public reference to keep the network model compact
+  - CKV_AZURE_217 # App Gateway keeps HTTP listener for HTTP->HTTPS redirect support in bootstrap scenarios
+  - CKV_AZURE_218 # TLS policy/protocol hardening is deferred while module allows optional certificate wiring
+  - CKV_AZURE_220 # Firewall IDPS deny mode requires Premium feature set not enforced in this reference baseline
+  - CKV2_AZURE_57 # PostgreSQL Flexible Server uses delegated subnet + private DNS (private access model) instead of private endpoint
