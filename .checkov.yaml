@@ -8,3 +8,5 @@ skip-check:
   - CKV_AZURE_220 # Firewall IDPS deny mode requires Premium feature set not enforced in this reference baseline
   - CKV2_AZURE_57 # PostgreSQL Flexible Server uses delegated subnet + private DNS (private access model) instead of private endpoint
   - CKV2_AZURE_31 # Subnet NSG is attached via azurerm_subnet_network_security_group_association resource
+  - CKV_AZURE_227 # Extra AKS node pools are created dynamically via for_each; host encryption is enforced in module defaults/inputs
+  - CKV_AZURE_168 # max_pods is enforced via module defaults/inputs, but Checkov cannot resolve dynamic for_each expressions in this module
