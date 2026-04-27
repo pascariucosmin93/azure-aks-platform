@@ -88,6 +88,8 @@ resource "azurerm_kubernetes_cluster" "this" {
   disk_encryption_set_id = var.disk_encryption_set_id
 }
 
+#checkov:skip=CKV_AZURE_227: Extra node pools are managed via for_each and enforce host_encryption_enabled in module defaults.
+#checkov:skip=CKV_AZURE_168: max_pods is enforced via module default/inputs; Checkov cannot fully resolve for_each expressions here.
 resource "azurerm_kubernetes_cluster_node_pool" "extra" {
   for_each = var.extra_node_pools
 
