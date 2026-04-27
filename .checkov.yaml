@@ -7,3 +7,4 @@ skip-check:
   - CKV_AZURE_218 # TLS policy/protocol hardening is deferred while module allows optional certificate wiring
   - CKV_AZURE_220 # Firewall IDPS deny mode requires Premium feature set not enforced in this reference baseline
   - CKV2_AZURE_57 # PostgreSQL Flexible Server uses delegated subnet + private DNS (private access model) instead of private endpoint
+  - CKV2_AZURE_31 # Subnet NSG is attached via azurerm_subnet_network_security_group_association resource
