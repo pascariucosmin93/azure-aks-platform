@@ -12,10 +12,25 @@ resource "azurerm_subnet" "this" {
   resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.this.name
   address_prefixes     = each.value.address_prefixes
+
+  dynamic "delegation" {
+    for_each = each.value.delegation != null ? [each.value.delegation] : []
+    content {
+      name = delegation.value.name
+      service_delegation {
+        name    = delegation.value.name
+        actions = delegation.value.actions
+      }
+    }
+  }
+}
+
+locals {
+  subnets_with_nsg = { for k, v in var.subnets : k => v if !v.skip_nsg }
 }
 
 resource "azurerm_network_security_group" "this" {
-  for_each            = var.subnets
+  for_each            = local.subnets_with_nsg
   name                = "${var.name}-${each.key}-nsg"
   location            = var.location
   resource_group_name = var.resource_group_name
@@ -23,7 +38,7 @@ resource "azurerm_network_security_group" "this" {
 }
 
 resource "azurerm_subnet_network_security_group_association" "this" {
-  for_each                  = var.subnets
+  for_each                  = local.subnets_with_nsg
   subnet_id                 = azurerm_subnet.this[each.key].id
   network_security_group_id = azurerm_network_security_group.this[each.key].id
 }

@@ -1,6 +1,15 @@
 name: Terraform Plan
 
 on:
+  # Auto-run on PRs targeting main so reviewers see the diff before merge
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'envs/**'
+      - 'modules/**'
+
+  # Manual trigger for ad-hoc plans without opening a PR
   workflow_dispatch:
     inputs:
       environment:
@@ -14,11 +23,16 @@ on:
 permissions:
   contents: read
   id-token: write
+  pull-requests: write  # required to post plan as PR comment
 
 jobs:
   plan:
+    name: Plan (${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'prod' }})
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'prod' }}
+
+    env:
+      ENV_DIR: envs/${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'prod' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +49,7 @@ jobs:
           terraform_version: 1.12.2
 
       - name: Prepare backend config
-        working-directory: envs/${{ inputs.environment }}
+        working-directory: ${{ env.ENV_DIR }}
         run: |
           cat > backend.hcl <<EOF
           resource_group_name  = "${{ secrets.TFSTATE_RESOURCE_GROUP }}"
@@ -45,22 +59,61 @@ jobs:
           use_azuread_auth     = true
           EOF
 
-      - name: Terraform init
-        working-directory: envs/${{ inputs.environment }}
+      - name: terraform init
+        working-directory: ${{ env.ENV_DIR }}
         run: terraform init -backend-config=backend.hcl
 
-      - name: Terraform plan
-        working-directory: envs/${{ inputs.environment }}
-        run: terraform plan -var-file=terraform.tfvars -out=tfplan
+      - name: terraform plan
+        id: plan
+        working-directory: ${{ env.ENV_DIR }}
+        run: |
+          terraform plan -var-file=terraform.tfvars -out=tfplan -no-color 2>&1 | tee plan.txt
+          echo "exitcode=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Post plan as PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('${{ env.ENV_DIR }}/plan.txt', 'utf8');
+            const MAX = 65000;
+            const body = plan.length > MAX
+              ? plan.slice(0, MAX) + '\n\n... plan truncated, see full output in workflow logs ...'
+              : plan;
+            const marker = '<!-- tf-plan -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            const full = `${marker}\n#### Terraform Plan\n\`\`\`hcl\n${body}\n\`\`\``;
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: full,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: full,
+              });
+            }
 
       - name: Export plan text
-        working-directory: envs/${{ inputs.environment }}
+        working-directory: ${{ env.ENV_DIR }}
         run: terraform show -no-color tfplan > tfplan.txt
 
       - name: Upload plan artifact
         uses: actions/upload-artifact@v4
         with:
-          name: terraform-plan-${{ inputs.environment }}
+          name: terraform-plan-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'prod' }}
+          retention-days: 5
           path: |
-            envs/${{ inputs.environment }}/tfplan
-            envs/${{ inputs.environment }}/tfplan.txt
+            ${{ env.ENV_DIR }}/tfplan
+            ${{ env.ENV_DIR }}/tfplan.txt

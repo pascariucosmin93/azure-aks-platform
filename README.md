@@ -1,245 +1,307 @@
 # azure-aks-platform
 
-Production-style Azure AKS landing zone built with Terraform.
+Production-ready Azure AKS landing zone built with Terraform — modular, private, and secure by default.
 
-This repository is a public, sanitized reference implementation of how I would structure an Azure platform for Kubernetes workloads using:
+This repository is a public reference implementation of how I would structure an Azure platform for Kubernetes workloads at scale (~10k users), covering edge security, private networking, managed data services, observability, and cost optimization.
 
-- Azure hub-spoke networking
-- Azure Kubernetes Service
-- Azure Container Registry
-- Azure Key Vault
-- Azure Log Analytics
-- user-assigned managed identities
-- Azure RBAC role assignments
-- reusable Terraform modules
-- multi-environment layout
-
-No live Azure account details, subscription IDs, tenant IDs, DNS zones or secrets are included.
-
-## What This Repository Demonstrates
-
-- modular Terraform design for Azure
-- AKS platform provisioning with reusable building blocks
-- network foundation for a hub-spoke model
-- identity and secret-management primitives
-- production-style role assignment patterns for AKS
-- operational structure for `dev` and `prod`
-- CI/CD validation for Terraform code quality
+No live Azure credentials, subscription IDs, tenant IDs, or secrets are included.
 
 ## Architecture
 
 ```mermaid
-flowchart LR
-    user[Developers / Platform Team]
+flowchart TD
+    internet([Internet])
 
-    subgraph hub[Hub]
-      rgHub[Hub Resource Group]
-      vnetHub[Hub VNet]
-      subFirewall[Shared Services / Future Firewall Subnet]
-      subBastion[Bastion / Ops Subnet]
-      loga[Log Analytics]
+    subgraph edge[Edge Layer]
+        fd[Azure Front Door\nCDN + Global WAF]
+        agw[Application Gateway\nWAF v2 · Zone-redundant]
     end
 
-    subgraph spoke[AKS Spoke]
-      rgSpoke[AKS Resource Group]
-      vnetSpoke[Spoke VNet]
-      subAks[AKS Subnet]
-      aks[AKS Cluster]
-      acr[Azure Container Registry]
-      kv[Key Vault]
-      uami[User Assigned Managed Identity]
+    subgraph hub[Hub VNet · 10.110.0.0/16]
+        bastion[Azure Bastion\nStandard SKU]
+        fw[Azure Firewall\nPolicy + IDPS rules]
     end
 
-    user --> aks
-    rgHub --> vnetHub
-    rgSpoke --> vnetSpoke
-    vnetHub --- vnetSpoke
-    vnetSpoke --> subAks
-    subAks --> aks
-    aks --> acr
-    aks --> kv
-    aks --> loga
-    uami --> aks
-    vnetHub --> subFirewall
-    vnetHub --> subBastion
+    subgraph spoke[AKS Spoke VNet · 10.120.0.0/16]
+        subgraph aks_cluster[AKS Private Cluster]
+            sys[System Pool\n3–5 × D4s_v5]
+            work[Workload Pool\n2–10 × D4s_v5 · autoscale]
+            spot[Spot Pool\n0–5 × D4s_v5 · cost-optimised]
+        end
+        redis[Azure Cache for Redis\nprivate endpoint]
+        pg[PostgreSQL Flexible\nZone-redundant HA]
+    end
+
+    subgraph platform[Platform Services]
+        acr[Azure Container Registry\nPremium · geo-replicated]
+        kv[Azure Key Vault\nRBAC · private endpoint]
+        log[Log Analytics\nContainer Insights + Alerts]
+    end
+
+    internet --> fd --> agw
+    agw --> aks_cluster
+    bastion -->|jump host| aks_cluster
+    aks_cluster -->|egress via UDR| fw --> internet
+    aks_cluster --> redis
+    aks_cluster --> pg
+    aks_cluster --> acr
+    aks_cluster --> kv
+    aks_cluster --> log
 ```
+
+## What This Repository Demonstrates
+
+- **Hub-spoke networking** with Azure Firewall for controlled egress (`userDefinedRouting`)
+- **Private AKS cluster** — API server not reachable from the public internet
+- **Edge security** — Azure Front Door (global WAF + CDN) → Application Gateway WAF v2
+- **Zero-secret identity** — OIDC issuer, Workload Identity, user-assigned managed identities
+- **Managed data layer** — Azure Cache for Redis and PostgreSQL Flexible Server, both VNet-integrated
+- **Private endpoints** for ACR, Key Vault, and Redis with Private DNS auto-registration
+- **Multi-pool AKS** — system, workload, and spot pools; all autoscaling
+- **Observability** — Container Insights, Log Analytics, metric alerts (CPU/memory), diagnostic logs for Firewall, App Gateway, and Key Vault
+- **Secure jump access** — Azure Bastion with correct NSG rules
+- **GitOps-ready Kubernetes** — namespaces, network policies, RBAC, HPA examples
+- **Multi-environment** — `dev` and `prod` compositions with separate state
 
 ## Repository Layout
 
-- `modules/resource-group/`: resource group module
-- `modules/network/`: VNet, subnets and optional peering
-- `modules/acr/`: Azure Container Registry
-- `modules/key-vault/`: Key Vault
-- `modules/monitoring/`: Log Analytics workspace
-- `modules/identity/`: user-assigned managed identity
-- `modules/role-assignment/`: reusable Azure RBAC role assignment
-- `modules/aks/`: AKS cluster
-- `envs/dev/`: development environment composition
-- `envs/prod/`: production environment composition
-- `examples/minimal/`: smallest useful AKS composition
-- `envs/*/backend.hcl.example`: sanitized Azure Blob backend examples
-- `docs/architecture.md`: design and implementation notes
-- `.github/workflows/terraform.yml`: Terraform quality workflow
-
-## Design Goals
-
-- clear separation between foundation and workload platform resources
-- reusable modules with environment-specific composition
-- minimal hardcoding
-- identity-first approach
-- safe public sharing
+```
+.
+├── modules/
+│   ├── aks/               AKS cluster, multi-pool, autoscaling, Defender, Workload Identity
+│   ├── acr/               Azure Container Registry (Premium, geo-replicated)
+│   ├── app-gateway/       Application Gateway WAF v2, zone-redundant, AGIC-ready
+│   ├── bastion/           Azure Bastion + mandatory NSG rules
+│   ├── firewall/          Azure Firewall, policy, egress rules, route table
+│   ├── front-door/        Azure Front Door Standard, WAF, origin group
+│   ├── identity/          User-assigned managed identity
+│   ├── key-vault/         Key Vault, RBAC, private endpoint, diagnostic logs
+│   ├── monitoring/        Log Analytics, Container Insights, alerts, action group
+│   ├── network/           VNet, subnets (delegation + skip_nsg), NSGs, peering
+│   ├── postgresql/        PostgreSQL Flexible Server, Zone-redundant HA, AAD auth
+│   ├── private-dns/       Private DNS zones + VNet links (cartesian product)
+│   ├── redis/             Azure Cache for Redis, private endpoint
+│   ├── resource-group/    Resource group
+│   └── role-assignment/   Azure RBAC role assignment
+├── envs/
+│   ├── dev/               Development environment composition
+│   └── prod/              Production environment composition
+├── kubernetes/
+│   ├── apps/              HPA + Deployment example with topology spread
+│   ├── namespaces/        Namespace definitions with Pod Security Standards
+│   ├── network-policies/  Default-deny + allow-ingress + allow-prometheus
+│   └── rbac/              ClusterRoles for developer and namespace-admin
+├── examples/
+│   └── minimal/           Smallest viable AKS setup (no hub-spoke, no data layer)
+└── .github/workflows/
+    ├── terraform.yml       Validate on every push and PR (fmt, init, validate, tflint, checkov)
+    ├── terraform-plan.yml  Authenticated plan on PR to main, posts diff as comment
+    └── terraform-apply.yml Authenticated plan + apply (manual trigger, environment approval)
+```
 
 ## Modules
 
-### `resource-group`
-
-Creates resource groups with consistent tags.
-
 ### `network`
+VNet, subnets, NSGs, optional VNet peering. Subnets support `delegation` (PostgreSQL Flexible Server) and `skip_nsg` (required for `AzureFirewallSubnet` and `AzureBastionSubnet`).
 
-Creates:
+### `firewall`
+Azure Firewall Standard with a Firewall Policy containing all AKS-required egress rules (MCR, AAD, Azure Monitor, NTP, Ubuntu updates). Creates a route table with a `0.0.0.0/0 → Firewall` UDR. Sends logs to Log Analytics.
 
-- virtual network
-- subnets
-- optional VNet peering
+### `app-gateway`
+Application Gateway WAF v2, zone-redundant, autoscaling (2–10 instances). OWASP 3.2 + BotManager rule sets. HTTP→HTTPS redirect only when a TLS certificate is configured. `lifecycle.ignore_changes` covers all fields managed by AGIC. Sends logs to Log Analytics.
 
-### `acr`
+### `front-door`
+Azure Front Door Standard profile with a WAF security policy (DefaultRuleSet 1.0 + BotManager). Routes traffic to the Application Gateway origin over HTTPS only.
 
-Creates a private Azure Container Registry with configurable SKU and admin access settings.
-
-### `key-vault`
-
-Creates an Azure Key Vault with RBAC enabled and public access controls.
-
-### `monitoring`
-
-Creates a Log Analytics workspace for AKS and platform observability.
-
-### `identity`
-
-Creates a user-assigned managed identity that can be attached to AKS or supporting services.
+### `bastion`
+Azure Bastion Standard with all mandatory NSG rules (inbound: HTTPS, GatewayManager, LB, host comms; outbound: SSH, RDP, AzureCloud, host comms, GetSessionInformation). Rules are managed as individual `azurerm_network_security_rule` resources for auditability.
 
 ### `aks`
+Private AKS cluster with:
+- Azure CNI Overlay + Azure Network Policy
+- `outbound_type = "userDefinedRouting"` (Firewall egress)
+- System pool with autoscaling (`min_count` / `max_count`)
+- Additional node pools via `extra_node_pools` map (Regular or Spot)
+- OIDC issuer + Workload Identity
+- Microsoft Defender for Containers
+- Key Vault secrets provider with rotation
+- OMS agent (Container Insights)
+- Maintenance windows for upgrades and node OS patching
+- Local account disabled, RBAC enabled
 
-Creates:
+### `monitoring`
+Log Analytics workspace, Container Insights solution, and an ops action group (email alerts). CPU and memory metric alerts are created in the environment composition to avoid a circular dependency with the AKS module.
 
-- AKS cluster
-- default node pool
-- Azure CNI overlay networking
-- OMS / Log Analytics integration
-- managed identity integration
-- optional private cluster mode
-- OIDC issuer and workload identity flags
+### `key-vault`
+RBAC-enabled Key Vault, purge protection, network ACLs default-deny. Diagnostic logs (AuditEvent, AzurePolicyEvaluationDetails) sent to Log Analytics.
+
+### `private-dns`
+Creates Private DNS zones and links them to every provided VNet using a cartesian-product `for_each`. Covers ACR, Key Vault, and Redis private endpoints.
+
+### `redis`
+Azure Cache for Redis with private endpoint, SSL-only, TLS 1.2 minimum, public access disabled.
+
+### `postgresql`
+PostgreSQL Flexible Server with Zone-redundant HA, AAD + password auth, private VNet integration (delegated subnet), SSL enforced, maintenance window, connection logging.
+
+### `acr`
+Premium ACR with geo-replication, zone redundancy, admin disabled, public access disabled.
+
+### `identity`
+User-assigned managed identity. Two instances are created in `envs/prod`: one for AKS (`aks-uami`) and one for the Application Gateway (`agw-uami`).
 
 ### `role-assignment`
-
-Creates reusable Azure RBAC role assignments for access patterns such as:
-
-- AKS kubelet identity -> `AcrPull`
-- platform identity -> `Key Vault Secrets User`
+Reusable RBAC role assignment. Used for: AcrPull (AKS kubelet), Key Vault Secrets User (AKS identity + AGW identity), Key Vault Secrets Officer (Terraform runner).
 
 ## Environments
 
-Two example environments are included:
+### `envs/prod`
 
-- `envs/dev`
-- `envs/prod`
-- `examples/minimal`
+Full production composition:
 
-Each environment is intentionally generic and designed for `terraform init`, `terraform fmt`, `terraform validate` and future extension into real subscriptions.
+| Resource | Details |
+|---|---|
+| Hub VNet | AzureBastionSubnet `/26`, AzureFirewallSubnet `/26`, shared-services `/24` |
+| Spoke VNet | aks `/24`, app-gateway `/24`, private-endpoints `/24`, postgresql `/24` (delegated) |
+| AKS | Private, Standard tier, 3 pools, userDefinedRouting |
+| System pool | 3–5 × Standard_D4s_v5, Ephemeral disk, critical addons only |
+| Workload pool | 2–10 × Standard_D4s_v5, autoscaling |
+| Spot pool | 0–5 × Standard_D4s_v5, cost-optimised |
+| Redis | Standard C1, private endpoint |
+| PostgreSQL | GP_Standard_D2s_v3, ZoneRedundant HA, 14-day backup |
+| Front Door | Standard, HTTPS-only, WAF Prevention mode |
+| App Gateway | WAF_v2, 2–10 instances, OWASP 3.2 |
+| Bastion | Standard SKU, tunneling enabled |
+| Monitoring | 30-day retention, Container Insights, CPU + memory alerts |
 
-State is intended to be stored remotely in Azure Blob Storage for real deployments. The repository includes partial backend configuration and sanitized `backend.hcl.example` files for both `dev` and `prod`.
+### `envs/dev`
 
-Each environment folder is designed to own its own:
+Lighter composition for development: single pool, no Firewall, no Redis/PostgreSQL, shared Log Analytics workspace.
 
-- `terraform.tfvars`
-- `backend.hcl`
-- Blob state key
+### `examples/minimal`
 
-This keeps `dev` and `prod` isolated instead of mixing sizing, networking, or backend details in one shared place.
+Absolute minimum: one resource group, one VNet, Log Analytics, identity, and AKS. No hub-spoke, no data layer. Use as a quick local test bed.
+
+## Kubernetes Manifests (`kubernetes/`)
+
+### Namespaces
+- `apps` — `restricted` Pod Security Standard enforced
+- `monitoring` — `privileged` (required for node-level exporters)
+- `ingress` — `restricted`
+
+### Network Policies
+- `default-deny-all` in `apps` namespace (deny all ingress + egress)
+- `allow-dns-egress` — permits UDP/TCP 53 for service discovery
+- `allow-from-ingress` — ingress namespace → apps
+- `allow-prometheus-scrape` — monitoring namespace → apps on port 8080/9090
+
+### RBAC
+- `developer-readonly` ClusterRole — read-only across pods, deployments, ingresses, HPAs. No secret access.
+- `namespace-admin` ClusterRole — full access within a namespace
+- `RoleBinding` template for AAD group → `developer-readonly` in `apps`
+
+### HPA Example (`kubernetes/apps/hpa-example.yaml`)
+- `autoscaling/v2` HPA with CPU (70%) and memory (80%) targets
+- Scale-up: aggressive (100% or +4 pods per 30s, whichever is larger)
+- Scale-down: conservative (25% per 60s, 5-minute stabilisation window)
+- `topologySpreadConstraints` to spread pods across AZs
+- `nodeSelector` targeting the workload pool
 
 ## CI/CD
 
-GitHub Actions validates the Terraform code with:
+### Validate (`terraform.yml`) — runs on every push and PR
 
-- `terraform fmt -check`
-- `terraform init -backend=false`
-- `terraform validate`
-- `tflint`
-- `checkov`
+| Step | What it checks |
+|---|---|
+| `terraform fmt -check -recursive` | Consistent formatting across the whole repo |
+| `terraform init -backend=false` + `terraform validate` | Schema validity per environment (matrix: dev, prod, minimal) |
+| `tflint --recursive` | Provider-specific lint rules, missing constraints, naming |
+| `checkov` | Security and compliance posture (CIS, NIST benchmarks) |
 
-The workflow is safe for a public repository because it does not need cloud credentials.
+No cloud credentials required — safe for public repositories.
 
-For a real Azure subscription, the intended next step is to add authenticated `terraform plan` jobs using GitHub Actions environments and Azure credentials.
+### Plan (`terraform-plan.yml`) — runs on PR to `main` and on manual dispatch
 
-### Why Both TFLint and Checkov?
+1. Azure OIDC login
+2. Construct `backend.hcl` from GitHub Environment secrets
+3. `terraform plan -out=tfplan`
+4. Export plan as human-readable `tfplan.txt`
+5. Post plan output as PR comment
+6. Upload binary + text plan as workflow artifact
 
-`TFLint` and `Checkov` solve different problems, so using both gives better coverage in CI.
+### Apply (`terraform-apply.yml`) — manual dispatch, environment approval required
 
-- `TFLint` focuses on Terraform quality: provider usage, missing constraints, invalid arguments, naming issues, and common authoring mistakes.
-- `Checkov` focuses on security and compliance: public exposure, weak defaults, missing network controls, and cloud-specific hardening gaps.
+1. Azure OIDC login
+2. `terraform plan` (safety re-plan before apply)
+3. `terraform apply -auto-approve`
 
-In practice, `TFLint` helps keep the code correct and maintainable, while `Checkov` helps keep the design safer and closer to production expectations.
+Recommended GitHub Environment protection rules:
+- `prod` requires at least one manual reviewer before apply
+- `dev` can apply automatically
+
+### Required GitHub Secrets (per Environment)
+
+| Secret | Description |
+|---|---|
+| `AZURE_CLIENT_ID` | Service principal / managed identity client ID |
+| `AZURE_TENANT_ID` | Azure AD tenant ID |
+| `AZURE_SUBSCRIPTION_ID` | Target subscription |
+| `TFSTATE_RESOURCE_GROUP` | Storage account resource group |
+| `TFSTATE_STORAGE_ACCOUNT` | Storage account name |
+| `TFSTATE_CONTAINER` | Blob container name |
+| `TFSTATE_KEY` | State file key (e.g. `prod.tfstate`) |
 
 ## How To Use
 
-1. Copy one of the environment folders.
-2. Fill in `terraform.tfvars` with your own Azure values.
-3. Copy `backend.hcl.example` to `backend.hcl` and replace the placeholder values with your own Azure Blob backend details.
-4. Run:
-
 ```bash
-cd envs/dev
+# 1. Copy an environment
+cp -r envs/prod envs/staging
+
+# 2. Fill in your values
+cp envs/staging/terraform.tfvars.example envs/staging/terraform.tfvars
+# edit terraform.tfvars
+
+# 3. Configure remote state
+cp envs/staging/backend.hcl.example envs/staging/backend.hcl
+# edit backend.hcl
+
+# 4. Deploy
+cd envs/staging
 terraform init -backend-config=backend.hcl
-terraform plan
-terraform apply
+terraform plan -var-file=terraform.tfvars
+terraform apply -var-file=terraform.tfvars
 ```
 
 ## Remote State Bootstrap
 
-For real usage, create a dedicated Azure Storage Account and Blob container for Terraform state before the first `apply`.
+Before the first `apply`, create a dedicated storage account for Terraform state:
 
-- Use a separate resource group for state storage.
-- Enable versioning, soft delete, and restricted network access on the storage account.
-- Keep one state key per environment, for example `azure-aks-platform/dev.tfstate` and `azure-aks-platform/prod.tfstate`.
-- Do not commit `backend.hcl` or any live backend values to Git.
+```bash
+az group create -n tfstate-rg -l westeurope
+az storage account create -n <unique-name> -g tfstate-rg \
+  --sku Standard_LRS --min-tls-version TLS1_2 \
+  --allow-blob-public-access false
+az storage container create -n tfstate \
+  --account-name <unique-name>
+```
 
-## Real Account CI/CD
+- Enable versioning and soft delete on the storage account
+- Use a separate state key per environment (`dev.tfstate`, `prod.tfstate`)
+- Never commit `backend.hcl` to Git
 
-If this repository is connected to a real Azure subscription, the expected GitHub setup is:
+## Design Decisions
 
-- `dev` and `prod` GitHub Environments
-- separate `backend.hcl` values per environment
-- Azure authentication through GitHub OIDC
+**Why `userDefinedRouting` for AKS egress?**
+Forces all outbound traffic through Azure Firewall. Without this, node pools get a public load balancer IP and can reach the internet freely. The Firewall policy allows only the FQDNs required by AKS itself.
 
-Required environment secrets:
+**Why two WAF layers (Front Door + App Gateway)?**
+Front Door WAF operates at the edge (global PoPs) and blocks volumetric attacks before they reach your region. App Gateway WAF inspects traffic at the VNet boundary with L7 awareness. Both are needed for defence in depth at scale.
 
-- `AZURE_CLIENT_ID`
-- `AZURE_TENANT_ID`
-- `AZURE_SUBSCRIPTION_ID`
-- `TFSTATE_RESOURCE_GROUP`
-- `TFSTATE_STORAGE_ACCOUNT`
-- `TFSTATE_CONTAINER`
-- `TFSTATE_KEY`
+**Why separate identities for AKS and Application Gateway?**
+Principle of least privilege. The AGW identity only needs `Key Vault Secrets User` to read TLS certificates. Giving it the AKS identity would grant broader access to ACR and cluster resources.
 
-Recommended setup:
+**Why `skip_nsg` on Bastion and Firewall subnets?**
+`AzureFirewallSubnet` does not support NSGs — Azure rejects the association. `AzureBastionSubnet` requires a specific set of NSG rules that a generic auto-created NSG would not satisfy. The `bastion` module creates and associates the correct NSG itself.
 
-- use `azure/login` with OIDC instead of long-lived client secrets
-- keep `dev` and `prod` protected with separate GitHub Environments
-- run `Terraform Plan` first and review the uploaded plan artifact
-- allow `Terraform Apply` only behind environment approval rules
-
-## Notes
-
-- This is a reference implementation, not a full enterprise landing zone.
-- Add remote state, policy enforcement, private DNS and ingress layers as needed.
-- Extend the AKS module with additional node pools, private DNS integration and ingress if you need a more advanced platform.
-
-## Portfolio Positioning
-
-This repository is meant to show cloud platform design quality:
-
-- Azure IaC structure
-- platform engineering thinking
-- Kubernetes-focused cloud architecture
-- reusable and maintainable Terraform layout
+**Why is the PostgreSQL password stored in Key Vault via Terraform?**
+The `random_password` + `azurerm_key_vault_secret` pattern keeps secrets out of `tfvars` and gives applications a single authoritative location to read credentials. The Terraform runner is granted `Key Vault Secrets Officer` dynamically via `data.azurerm_client_config.current` — no hardcoded service principal IDs.

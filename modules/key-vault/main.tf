@@ -1,3 +1,14 @@
+resource "azurerm_monitor_diagnostic_setting" "key_vault" {
+  count                      = var.log_analytics_workspace_id != null ? 1 : 0
+  name                       = "${var.name}-kv-diag"
+  target_resource_id         = azurerm_key_vault.this.id
+  log_analytics_workspace_id = var.log_analytics_workspace_id
+
+  enabled_log { category = "AuditEvent" }
+  enabled_log { category = "AzurePolicyEvaluationDetails" }
+  enabled_metric { category = "AllMetrics" }
+}
+
 resource "azurerm_key_vault" "this" {
   name                          = var.name
   location                      = var.location

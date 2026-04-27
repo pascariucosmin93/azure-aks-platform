@@ -17,6 +17,13 @@ variable "address_space" {
 variable "subnets" {
   type = map(object({
     address_prefixes = list(string)
+    # Set to true for subnets that must not have an NSG (e.g. AzureFirewallSubnet)
+    skip_nsg = optional(bool, false)
+    # Service delegation (required for PostgreSQL Flexible Server, App Service, etc.)
+    delegation = optional(object({
+      name    = string
+      actions = list(string)
+    }))
   }))
 }
 

@@ -49,6 +49,12 @@ variable "network_acls" {
   }
 }
 
+variable "log_analytics_workspace_id" {
+  type        = string
+  default     = null
+  description = "Log Analytics workspace ID for diagnostic logs"
+}
+
 variable "tags" {
   type    = map(string)
   default = {}

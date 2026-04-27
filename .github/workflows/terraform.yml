@@ -1,4 +1,4 @@
-name: Terraform
+name: Terraform Validate
 
 on:
   push:
@@ -8,9 +8,25 @@ on:
   workflow_dispatch:
 
 jobs:
-  validate:
+  fmt:
+    name: Format check
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.2
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive
+
+  validate:
+    name: Validate (${{ matrix.env_dir }})
+    runs-on: ubuntu-latest
+    needs: fmt
     strategy:
+      fail-fast: false
       matrix:
         env_dir:
           - envs/dev
@@ -24,19 +40,18 @@ jobs:
         with:
           terraform_version: 1.12.2
 
-      - name: Terraform fmt
-        run: terraform fmt -check -recursive
-
-      - name: Terraform init
+      - name: terraform init
         working-directory: ${{ matrix.env_dir }}
         run: terraform init -backend=false
 
-      - name: Terraform validate
+      - name: terraform validate
         working-directory: ${{ matrix.env_dir }}
         run: terraform validate
 
   tflint:
+    name: TFLint
     runs-on: ubuntu-latest
+    needs: fmt
     steps:
       - uses: actions/checkout@v4
 
@@ -51,7 +66,9 @@ jobs:
         run: tflint --recursive
 
   checkov:
+    name: Checkov security scan
     runs-on: ubuntu-latest
+    needs: fmt
     steps:
       - uses: actions/checkout@v4
 
@@ -61,3 +78,4 @@ jobs:
           framework: terraform
           config_file: .checkov.yaml
           quiet: true
+          output_format: cli

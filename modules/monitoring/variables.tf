@@ -20,6 +20,12 @@ variable "retention_in_days" {
   default = 30
 }
 
+variable "alert_email" {
+  type        = string
+  default     = null
+  description = "Email address for ops alert action group"
+}
+
 variable "tags" {
   type    = map(string)
   default = {}

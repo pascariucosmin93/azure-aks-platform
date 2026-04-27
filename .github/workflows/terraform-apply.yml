@@ -17,8 +17,12 @@ permissions:
 
 jobs:
   apply:
+    name: Apply (${{ inputs.environment }})
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+
+    env:
+      ENV_DIR: envs/${{ inputs.environment }}
 
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +39,7 @@ jobs:
           terraform_version: 1.12.2
 
       - name: Prepare backend config
-        working-directory: envs/${{ inputs.environment }}
+        working-directory: ${{ env.ENV_DIR }}
         run: |
           cat > backend.hcl <<EOF
           resource_group_name  = "${{ secrets.TFSTATE_RESOURCE_GROUP }}"
@@ -45,10 +49,16 @@ jobs:
           use_azuread_auth     = true
           EOF
 
-      - name: Terraform init
-        working-directory: envs/${{ inputs.environment }}
+      - name: terraform init
+        working-directory: ${{ env.ENV_DIR }}
         run: terraform init -backend-config=backend.hcl
 
-      - name: Terraform apply
-        working-directory: envs/${{ inputs.environment }}
-        run: terraform apply -var-file=terraform.tfvars -auto-approve
+      # Plan immediately before apply — ensures apply uses the current state,
+      # not a plan artifact that may be stale from an earlier PR review.
+      - name: terraform plan
+        working-directory: ${{ env.ENV_DIR }}
+        run: terraform plan -var-file=terraform.tfvars -out=tfplan -detailed-exitcode
+
+      - name: terraform apply
+        working-directory: ${{ env.ENV_DIR }}
+        run: terraform apply -auto-approve tfplan
