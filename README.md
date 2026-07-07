@@ -1,5 +1,7 @@
 # azure-aks-platform
 
+[![Terraform Validate](https://github.com/pascariucosmin93/azure-aks-platform/actions/workflows/terraform.yml/badge.svg)](https://github.com/pascariucosmin93/azure-aks-platform/actions/workflows/terraform.yml)
+
 Production-ready Azure AKS landing zone built with Terraform — modular, private, and secure by default.
 
 This repository is a public reference implementation of how I would structure an Azure platform for Kubernetes workloads at scale (~10k users), covering edge security, private networking, managed data services, observability, and cost optimization.
